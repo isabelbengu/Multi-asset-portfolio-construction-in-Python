@@ -64,7 +64,7 @@ risk.
 
 **3. Turnover is a tax event, not just a cost.** Mean-variance turned over 53.9%
 p.a. against 4.0% for the policy portfolio. The direct transaction cost
-difference is €12,054 — trivial. But in Italy each rebalance realises gains
+difference is €12,054. But in Italy each rebalance realises gains
 taxed at 26%, and turnover compounds into the tax base. Holding everything else
 fixed and toggling only the no-trade band (§7 of the IPS,
 `REBALANCE_BAND = 0.015`):
@@ -79,7 +79,7 @@ fixed and toggling only the no-trade band (§7 of the IPS,
 it is saved commission. The rest is deferred tax that stayed invested.
 
 **4. Risk parity did what it promises and not more.** Lowest volatility (6.00%),
-lowest drawdown, lowest turnover — and a return that, after a 3.5% withdrawal
+lowest drawdown, lowest turnover, and a return that, after a 3.5% withdrawal
 rate, left the portfolio at €1.72m against a €2m start. Low risk is not free
 when there is an income need: the mandate's binding problem is funding, and
 risk parity solves for the wrong variable unless it is levered, which the IPS
