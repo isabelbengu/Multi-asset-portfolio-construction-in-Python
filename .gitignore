@@ -216,3 +216,40 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (keep raw/large data out of git)
+/data/raw/
+/data/cache/
+*.csv
+*.parquet
+!/data/sample/*.csv    # exception if you want a small sample tracked
+
+# Outputs
+/outputs/
+*.png
+*.pdf
+!docs/*.png            # exception if you want report charts tracked
+
+# OS / editor junk
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Environment secrets
+.env
