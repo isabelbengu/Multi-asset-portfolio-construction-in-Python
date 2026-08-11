@@ -166,7 +166,7 @@ def synthetic_prices(start: str, end: str, seed: int | None = None) -> pd.DataFr
        tails are fatter than Gaussian. A backtest that only ever sees normal
        returns flatters every risk model in it.
     2. The regime overlay is de-meaned before it is applied. It redistributes
-       return through time -- a bear market, a recovery, a rate shock -- without
+       return through time, a bear market, a recovery, a rate shock, without
        secretly changing the long-run drift. Without this the "crisis" silently
        becomes a permanent haircut and the whole study measures an artefact.
     """
