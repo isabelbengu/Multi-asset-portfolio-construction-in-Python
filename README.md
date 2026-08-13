@@ -56,7 +56,7 @@ before selection, because they are what actually determines the study window:
 
 Common window ≈ **December 2009 onward, about 16.5 years**. With a three-year
 estimation window burned in for the optimiser, roughly **13.5 years are
-measured** — short of fifteen, and the README says so rather than rounding up.
+measured**, short of fifteen, and the README says so rather than rounding up.
 Run `python -m src.fetch_macro --coverage` to re-audit; ETF listings change.
 
 Three data decisions worth stating, since each changes results:
