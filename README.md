@@ -74,7 +74,7 @@ ECB's published €STR over the overlap.
 
 **Income is indexed to realised HICP.** Euro inflation exceeded 8% in 2022.
 Indexing the client's withdrawal at a smooth 2% would understate the real
-withdrawal burden in the year the portfolio was also falling — which is exactly
+withdrawal burden in the year the portfolio was also falling, which is exactly
 the sequence risk the mandate exists to survive.
 
 ## Method notes
