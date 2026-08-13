@@ -55,10 +55,20 @@ def test_concentration_cap_respected(window, name):
 
 
 def test_static_6040_matches_policy(window):
+    """
+    The '60' is risk assets, not the equity sleeve alone.
+
+    IPS section 4 counts listed real estate under 'growth assets (equity,
+    listed real estate)', while config classes it as a diversifier for
+    correlation purposes. Both are defensible; what matters is that the split
+    the portfolio is named after is the split it actually holds.
+    """
     w = static_6040(window)
     assert np.isclose(w["dm_equity"], config.POLICY_6040["dm_equity"], atol=1e-9)
-    growth = w[[k for k in config.GROWTH_KEYS]].sum()
-    assert np.isclose(growth, 0.60, atol=1e-9)
+    defensive = w[[k for k in config.DEFENSIVE_KEYS]].sum()
+    risk_assets = 1.0 - defensive
+    assert np.isclose(defensive, 0.40, atol=1e-9)
+    assert np.isclose(risk_assets, 0.60, atol=1e-9)
 
 
 def test_risk_parity_equalises_risk_contributions(window):

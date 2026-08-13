@@ -34,6 +34,8 @@ def main() -> None:
     ap.add_argument("--no-tax", action="store_true", help="run gross of Italian tax")
     ap.add_argument("--rebalance", default=None, choices=["M", "Q", "A"])
     ap.add_argument("--no-cache", action="store_true")
+    ap.add_argument("--allow-synthetic", action="store_true",
+                    help="fall back to simulated prices if the download fails")
     args = ap.parse_args()
 
     if args.rebalance:
@@ -41,7 +43,22 @@ def main() -> None:
 
     OUT.mkdir(exist_ok=True)
 
-    prices, synthetic = data.load_prices(args.start, args.end, use_cache=not args.no_cache)
+    prices, synthetic = data.load_prices(args.start, args.end, use_cache=not args.no_cache,
+                                         allow_synthetic=args.allow_synthetic)
+    cash, cash_src = data.load_cash_rate(prices.index, use_cache=not args.no_cache)
+    infl, infl_src = data.inflation_factor(prices.index)
+
+    print(f"Risk-free:  {cash_src}")
+    print(f"Inflation:  {infl_src}")
+    # Only meaningful when a real tracker was used; comparing a flat fallback
+    # against published €STR would report a "tracking difference" for a series
+    # that isn't tracking anything.
+    if cash_src.startswith(config.CASH_TICKER):
+        check = data.verify_cash_tracker(cash)
+        if check is not None:
+            diff = check.loc["difference", "annualised"]
+            print(f"Cash tracker vs ECB €STR over the overlap: {diff:+.2%} p.a.")
+
     if synthetic:
         print("\n" + "!" * 72)
         print("!  SYNTHETIC DATA. yfinance was unavailable, so prices were simulated")
@@ -53,11 +70,15 @@ def main() -> None:
     print(f"Period: {prices.index[0]:%Y-%m-%d} to {prices.index[-1]:%Y-%m-%d}  "
           f"({len(prices)} trading days, {len(prices.columns)} assets)\n")
 
+    from .backtest import common_start_index
+    si = common_start_index(len(prices))
     results = {}
     for name in STRATEGIES:
         print(f"  running {name} ...")
-        results[name] = run_backtest(prices, name, apply_tax=not args.no_tax,
-                                     is_synthetic=synthetic)
+        res = run_backtest(prices, name, apply_tax=not args.no_tax,
+                           is_synthetic=synthetic, start_i=si, inflation=infl)
+        res.cash = cash.reindex(res.equity.index).fillna(0.0)
+        results[name] = res
 
     table = metrics.comparison_table(results)
     pretty = metrics.format_table(table)
@@ -89,7 +110,8 @@ def main() -> None:
     _plot_twr(results, synthetic)
     _plot_drawdown(results, synthetic)
     _plot_weights(results, synthetic)
-    _write_results_md(table, attrib, results, prices, synthetic)
+    _write_results_md(table, attrib, results, prices, synthetic,
+                      sources={"risk-free": cash_src, "inflation": infl_src})
 
     print(f"\nWritten to {OUT}/  (summary.csv, attribution.csv, *.png, RESULTS.md)")
 
@@ -173,7 +195,7 @@ def _plot_weights(results, synthetic):
 # Results write-up
 # --------------------------------------------------------------------------
 
-def _write_results_md(table, attrib, results, prices, synthetic):
+def _write_results_md(table, attrib, results, prices, synthetic, sources=None):
     lines = ["# Results", ""]
     if synthetic:
         lines += ["> **Synthetic data.** Generated from the capital market assumptions in",
@@ -182,8 +204,11 @@ def _write_results_md(table, attrib, results, prices, synthetic):
     lines += [
         f"Period: **{prices.index[0]:%d %b %Y} – {prices.index[-1]:%d %b %Y}** "
         f"({len(prices) / 252:.1f} years). Initial capital €{config.INITIAL_CAPITAL:,.0f}, "
-        f"income need €{config.INCOME_NEED_ANNUAL:,.0f} p.a. indexed at "
-        f"{config.ASSUMED_INFLATION:.0%}, rebalanced {config.REBALANCE_FREQ}.", "",
+        f"income need €{config.INCOME_NEED_ANNUAL:,.0f} p.a., rebalanced "
+        f"{config.REBALANCE_FREQ}.", "",
+        "| input | source |", "|---|---|",
+        *[f"| {k} | {v} |" for k, v in (sources or {}).items()],
+        f"| prices | Yahoo Finance, adjusted close, EUR |", "",
         "## Headline metrics", "",
         metrics.format_table(table).to_markdown(), "",
         "## Attribution by asset class", "",

@@ -45,6 +45,7 @@ class BacktestResult:
     attribution: pd.Series            # EUR contribution by asset
     is_synthetic: bool = False
     meta: dict = field(default_factory=dict)
+    cash: pd.Series | None = None        # daily risk-free return, for Sharpe
 
     @property
     def returns(self) -> pd.Series:
@@ -90,6 +91,7 @@ def run_backtest(
     apply_tax: bool | None = None,
     is_synthetic: bool = False,
     start_i: int | None = None,
+    inflation: pd.Series | None = None,
 ) -> BacktestResult:
 
     apply_tax = config.APPLY_TAX_DRAG if apply_tax is None else apply_tax
@@ -112,6 +114,11 @@ def run_backtest(
     if start_i is None:
         start_i = common_start_index(len(prices))
     dates = prices.index[start_i:]
+
+    infl_factor = None
+    if inflation is not None and len(inflation):
+        infl_factor = inflation.reindex(dates).ffill().bfill()
+        infl_factor = infl_factor / infl_factor.iloc[0]
 
     reb_dates = set(_period_ends(dates, config.REBALANCE_FREQ))
     wd_dates = sorted(_period_ends(dates, config.WITHDRAWAL_FREQ))
@@ -154,8 +161,13 @@ def run_backtest(
         # target, so the withdrawal does part of the rebalancing work for free
         # (IPS section 7). Falls back to pro rata when nothing is overweight.
         if dt in wd_dates and total > 0:
-            years_elapsed = (dt - dates[0]).days / 365.25
-            infl = (1 + config.ASSUMED_INFLATION) ** years_elapsed if config.INCOME_INDEXED_TO_INFLATION else 1.0
+            if not config.INCOME_INDEXED_TO_INFLATION:
+                infl = 1.0
+            elif infl_factor is not None:
+                infl = float(infl_factor.loc[dt])          # realised HICP
+            else:
+                years_elapsed = (dt - dates[0]).days / 365.25
+                infl = (1 + config.ASSUMED_INFLATION) ** years_elapsed
             wd_amt = min(income_annual / wd_per_year * infl, total * 0.9)
 
             over = np.maximum(values / total - last_target, 0.0)
@@ -261,7 +273,13 @@ def _tax_on_gains(gains: np.ndarray, rates: np.ndarray, loss_pool: float) -> tup
     return tax, loss_pool
 
 
-def run_all(prices: pd.DataFrame, is_synthetic: bool = False, **kw) -> dict[str, BacktestResult]:
+def run_all(prices: pd.DataFrame, is_synthetic: bool = False,
+            cash: pd.Series | None = None, **kw) -> dict[str, BacktestResult]:
     si = common_start_index(len(prices))
-    return {name: run_backtest(prices, name, is_synthetic=is_synthetic, start_i=si, **kw)
-            for name in STRATEGIES}
+    out = {}
+    for name in STRATEGIES:
+        res = run_backtest(prices, name, is_synthetic=is_synthetic, start_i=si, **kw)
+        if cash is not None:
+            res.cash = cash.reindex(res.equity.index).fillna(0.0)
+        out[name] = res
+    return out

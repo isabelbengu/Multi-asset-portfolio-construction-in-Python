@@ -41,7 +41,7 @@ bottom up:
 | Component | Rate |
 |---|---|
 | Initial withdrawal rate (€70,000 on €2,000,000) | 3.50% |
-| Assumed inflation | 2.00% |
+| Inflation (realised Italian HICP in the backtest; 2.0% assumed forward) | 2.00% |
 | Ongoing charges, transaction costs | 0.30% |
 | Imposta di bollo | 0.20% |
 | **Required nominal return, before capital gains tax** | **≈ 6.00%** |
@@ -52,8 +52,12 @@ exposure, and that in adverse sequences the real value of capital may decline
 even where the income is maintained. Capital preservation in nominal terms is
 **not** the objective; funding the income stream for fifteen years is.
 
-**Income objective.** €70,000 per annum, indexed to inflation at 2%,
-distributed quarterly. Income is raised by selling assets pro rata rather than
+**Income objective.** €70,000 per annum, indexed to inflation, distributed
+quarterly. Indexation in the backtest uses realised Italian HICP rather than a
+flat assumption. This matters more than it sounds: euro area inflation ran
+above 8% in 2022, and a study that indexes income at a smooth 2% through that
+period understates the real withdrawal burden in precisely the year the
+portfolio was also falling. Income is raised by selling assets pro rata rather than
 by targeting a natural dividend yield. Manufacturing income from total return
 avoids the concentration and value-tilt that a yield-seeking portfolio
 imposes, and in Italy accumulating funds defer the taxable event rather than
@@ -108,16 +112,27 @@ controversial weapons. No leverage, no securities lending preference expressed.
 The policy portfolio is a 60/40 growth/defensive split, implemented in
 EUR-denominated or EUR-hedged accumulating UCITS ETFs:
 
-| Asset class | Policy | Permitted range |
-|---|---|---|
-| Developed world equity | 36% | 25–40% |
-| Eurozone equity | 12% | 5–20% |
-| Emerging market equity | 12% | 5–20% |
-| Euro government bonds | 20% | 10–35% |
-| Euro IG corporate bonds | 12% | 5–25% |
-| Global aggregate, EUR-hedged | 8% | 0–20% |
-| European listed real estate | 0% | 0–10% |
-| Gold | 0% | 0–10% |
+| Asset class | Instrument | Policy | Permitted range |
+|---|---|---|---|
+| Developed world equity | IWDA.AS | 40% | 25–40% |
+| Emerging market equity | EUNM.DE | 12% | 5–20% |
+| European listed real estate | IQQP.DE | 8% | 0–12% |
+| Euro government bonds | EUNH.DE | 18% | 10–35% |
+| Euro IG corporate bonds | IEAC.AS | 12% | 5–25% |
+| Euro aggregate bonds | IEAG.AS | 10% | 0–20% |
+| Gold | 4GLD.DE | 0% | 0–10% |
+
+The 60/40 label refers to risk assets against defensive assets: 60% across
+equity and listed real estate, 40% across the three bond sleeves. Gold is
+permitted but not held at policy weight; it is available to the optimiser and
+to risk parity, which is part of what the study tests.
+
+Euro aggregate replaces the EUR-hedged global aggregate originally
+contemplated. Every hedged global bond UCITS with adequate liquidity launched
+after 2017, and including one would have truncated the measurement window by
+seven years. The substitution costs some geographic diversification in the
+defensive sleeve and is flagged for review if a longer-history instrument
+becomes available.
 
 Two alternative construction methods are evaluated against this policy
 portfolio in the accompanying study: unconstrained-by-priors **mean-variance
@@ -192,5 +207,5 @@ tolerance, and confirm income requirements annually in advance.
 
 ---
 
-*Prepared as a portfolio-construction exercise. Fictitious client, illustrative
+*Prepared by Isabel Bengu as a portfolio-construction exercise. Fictitious client, illustrative
 figures, not investment or tax advice.*

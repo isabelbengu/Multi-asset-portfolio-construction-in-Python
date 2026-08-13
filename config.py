@@ -58,23 +58,43 @@ class Asset:
     cma_vol: float = 0.15
 
 
+# Inception dates verified against Yahoo Finance, August 2026. The binding
+# constraint is EUNM.DE (Oct 2009) and 4GLD.DE (Nov 2009), which set the common
+# window at roughly Dec 2009. Stooq was rejected as a source: its European ETF
+# coverage starts whenever Stooq began tracking the listing, not at inception
+# (IWDA.NL begins Jan 2026 there), which silently truncates the study.
+
 UNIVERSE: list[Asset] = [
-    Asset("dm_equity",  "Developed world equity",   "IWDA.AS", "growth",       cma_return=0.068, cma_vol=0.155),
-    Asset("eu_equity",  "Eurozone equity",          "SXR7.DE", "growth",       cma_return=0.070, cma_vol=0.180),
-    Asset("em_equity",  "Emerging market equity",   "EIMI.AS", "growth",       cma_return=0.075, cma_vol=0.210),
-    Asset("eu_govt",    "Euro government bonds",    "IEGA.AS", "defensive",    whitelist_govt=True, cma_return=0.028, cma_vol=0.055),
-    Asset("eu_corp",    "Euro IG corporate bonds",  "IEAC.AS", "defensive",    cma_return=0.035, cma_vol=0.065),
-    Asset("gl_agg_h",   "Global aggregate, EUR-hgd", "AGGH.MI", "defensive",   cma_return=0.032, cma_vol=0.050),
-    Asset("eu_reits",   "European listed real estate", "IPRP.AS", "diversifier", cma_return=0.060, cma_vol=0.190),
-    Asset("gold",       "Gold",                     "SGLD.MI", "diversifier",  cma_return=0.040, cma_vol=0.145),
+    Asset("dm_equity", "Developed world equity",      "IWDA.AS", "growth",
+          cma_return=0.068, cma_vol=0.155),
+    Asset("em_equity", "Emerging market equity",      "EUNM.DE", "growth",
+          cma_return=0.075, cma_vol=0.210),
+    Asset("eu_govt",   "Euro government bonds",       "EUNH.DE", "defensive",
+          whitelist_govt=True, cma_return=0.028, cma_vol=0.055),
+    Asset("eu_corp",   "Euro IG corporate bonds",     "IEAC.AS", "defensive",
+          cma_return=0.035, cma_vol=0.065),
+    Asset("eu_agg",    "Euro aggregate bonds",        "IEAG.AS", "defensive",
+          cma_return=0.032, cma_vol=0.050),
+    Asset("eu_reits",  "European listed real estate", "IQQP.DE", "diversifier",
+          cma_return=0.060, cma_vol=0.190),
+    Asset("gold",      "Gold",                        "4GLD.DE", "diversifier",
+          cma_return=0.040, cma_vol=0.145),
 ]
+
+# Not part of the investable universe: an overnight-rate tracker used as the
+# risk-free benchmark. See src/data.py for why this beats splicing EONIA.
+CASH_TICKER = "XEON.DE"
+CASH_RATE_FALLBACK = 0.015          # flat rate, used only if XEON.DE is unavailable
+
+# Italian HICP, Eurostat series mirrored by FRED. Indexes the income need.
+HICP_FRED_SERIES = "CP0000ITM086NEST"
 
 TICKERS = {a.key: a.ticker for a in UNIVERSE}
 ASSET_KEYS = [a.key for a in UNIVERSE]
 GROWTH_KEYS = [a.key for a in UNIVERSE if a.sleeve == "growth"]
 DEFENSIVE_KEYS = [a.key for a in UNIVERSE if a.sleeve == "defensive"]
 
-CASH_RATE_PROXY = 0.015            # flat risk-free used for Sharpe if no €STR series
+CASH_RATE_PROXY = 0.015            # legacy constant, superseded by the XEON.DE series
 
 # --------------------------------------------------------------------------
 # Strategy constraints (IPS section 4)
@@ -87,18 +107,18 @@ MIN_DEFENSIVE = 0.20               # liquidity floor for the income need
 
 # Strategic 60/40 policy weights
 POLICY_6040 = {
-    "dm_equity": 0.36,
-    "eu_equity": 0.12,
+    "dm_equity": 0.40,
     "em_equity": 0.12,
-    "eu_govt": 0.20,
+    "eu_reits": 0.08,
+    "eu_govt": 0.18,
     "eu_corp": 0.12,
-    "gl_agg_h": 0.08,
-    "eu_reits": 0.00,
+    "eu_agg": 0.10,
     "gold": 0.00,
 }
 
 # Mean-variance settings
-MVO_LOOKBACK_YEARS = 5             # rolling estimation window
+MVO_LOOKBACK_YEARS = 3             # rolling estimation window (see README: 5y
+                                   # would cost 2 more years of measured results)
 MVO_SHRINKAGE = 0.5                # 0 = pure sample estimates, 1 = pure CMA priors
 MVO_OBJECTIVE = "max_sharpe"       # 'max_sharpe' | 'min_vol' | 'target_vol'
 MVO_TARGET_VOL = 0.10

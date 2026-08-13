@@ -26,14 +26,29 @@ def volatility(returns: pd.Series) -> float:
     return float(returns.std(ddof=1) * np.sqrt(TRADING_DAYS))
 
 
-def sharpe(returns: pd.Series, rf: float = config.CASH_RATE_PROXY) -> float:
-    excess = returns - rf / TRADING_DAYS
+def _excess(returns: pd.Series, rf: pd.Series | float | None) -> pd.Series:
+    """
+    Excess return over the risk-free rate.
+
+    `rf` may be a daily series (preferred — euro cash went from -0.5% to +4%
+    over this sample, and a constant would make every Sharpe ratio wrong in a
+    direction that changes sign mid-study) or a scalar annual rate.
+    """
+    if rf is None:
+        rf = config.CASH_RATE_PROXY
+    if isinstance(rf, pd.Series):
+        return returns - rf.reindex(returns.index).fillna(0.0)
+    return returns - rf / TRADING_DAYS
+
+
+def sharpe(returns: pd.Series, rf: pd.Series | float | None = None) -> float:
+    excess = _excess(returns, rf)
     sd = excess.std(ddof=1)
     return float(excess.mean() / sd * np.sqrt(TRADING_DAYS)) if sd > 0 else np.nan
 
 
-def sortino(returns: pd.Series, rf: float = config.CASH_RATE_PROXY) -> float:
-    excess = returns - rf / TRADING_DAYS
+def sortino(returns: pd.Series, rf: pd.Series | float | None = None) -> float:
+    excess = _excess(returns, rf)
     downside = excess[excess < 0].std(ddof=1)
     return float(excess.mean() / downside * np.sqrt(TRADING_DAYS)) if downside > 0 else np.nan
 
@@ -120,8 +135,8 @@ def summarise(res: BacktestResult) -> dict:
         "Strategy": res.name,
         "CAGR": cagr(r),
         "Volatility": volatility(r),
-        "Sharpe": sharpe(r),
-        "Sortino": sortino(r),
+        "Sharpe": sharpe(r, res.cash),
+        "Sortino": sortino(r, res.cash),
         "Max drawdown": mdd,
         "Calmar": cagr(r) / abs(mdd) if mdd else np.nan,
         "Ulcer index": ulcer_index(idx),

@@ -1,182 +1,159 @@
 # HNW Portfolio Construction — IPS and Allocation Study
 
-A full portfolio construction case study built around a hypothetical €2,000,000
-high-net-worth mandate: 15-year horizon, ongoing income need, Italian tax
-residency. It contains a two-page [Investment Policy Statement](docs/IPS.md)
-defining objectives, constraints and risk limits, and a Python backtesting
-engine comparing three allocation methods — strategic 60/40, mean-variance
-optimisation, and equal-risk-contribution risk parity — over a 15-year window
-with quarterly rebalancing, net of transaction costs, ongoing charges, Italian
-capital gains tax and *imposta di bollo*.
+A portfolio construction case study for a hypothetical €2,000,000 high-net-worth
+mandate: 15-year horizon, ongoing income need, Italian tax residency. It
+contains a two-page [Investment Policy Statement](docs/IPS.md) defining
+objectives, constraints and risk limits, and a Python backtesting engine
+comparing three allocation methods — strategic 60/40, mean-variance
+optimisation, and equal-risk-contribution risk parity — with quarterly
+rebalancing, net of transaction costs, ongoing charges, Italian capital gains
+tax and *imposta di bollo*.
 
-The point of the exercise is the part most backtests leave out: what the
+The point of the exercise is the part most backtests leave out: what an
 allocation does **after** an income schedule, a turnover budget and a 26% tax
 rate are applied to it.
 
----
-
-> ### ⚠️ Read this before quoting any number
-> The results committed here were produced from **synthetic prices**, generated
-> from the capital market assumptions in `src/config.py`, because the machine
-> used to build the repo had no market data access. The mechanics are real; the
-> numbers are not history.
->
-> To reproduce with real data: `pip install yfinance` then
-> `python -m src.run --no-cache`. Every table, chart and figure in
-> `outputs/` regenerates. **Do this before showing the repo to anyone.**
-
----
-
-## Headline results
-
-Synthetic 15-year window, €2m initial, €70k p.a. income indexed at 2%,
-quarterly rebalancing, net of all costs and tax.
-
-| | 60/40 | Mean-variance | Risk parity |
-|---|---|---|---|
-| CAGR | **6.26%** | 0.83% | 2.57% |
-| Volatility | 10.75% | 8.65% | 6.00% |
-| Sharpe | **0.48** | −0.04 | 0.20 |
-| Max drawdown | −21.63% | −27.59% | **−21.14%** |
-| Turnover p.a. (one-way) | 3.99% | 53.90% | **1.94%** |
-| Terminal value | **€2,822,725** | €1,308,824 | €1,717,453 |
-| Capital gains tax paid | €115,008 | €7,144 | €17,347 |
-| *Imposta di bollo* paid | €58,028 | €35,184 | €41,585 |
-
-Full tables, per-asset attribution and drawdown episodes: [`outputs/RESULTS.md`](outputs/RESULTS.md).
-
-## What the study actually shows
-
-**1. The optimiser breached the risk limit it was constrained to respect.**
-Mean-variance was constrained *ex ante* on estimated volatility and still
-delivered a −27.6% drawdown against the IPS tolerance of −25%. Constraining a
-portfolio on an estimate is not the same as constraining it on an outcome. This
-is the argument for stating drawdown limits in the IPS as review triggers
-rather than as optimiser inputs.
-
-**2. Mean-variance bought the asset that was about to break.** Attribution puts
-the damage in Euro IG corporate bonds: an average 23.4% weight losing €131,328.
-The rolling five-year window rated credit attractive on trailing data
-immediately before the rate shock. Shrinkage toward long-run assumptions
-(`MVO_SHRINKAGE = 0.5`) reduced but did not remove the effect. Estimation error
-in expected returns is not a detail of the method, it is the method's dominant
-risk.
-
-**3. Turnover is a tax event, not just a cost.** Mean-variance turned over 53.9%
-p.a. against 4.0% for the policy portfolio. The direct transaction cost
-difference is €12,054. But in Italy each rebalance realises gains
-taxed at 26%, and turnover compounds into the tax base. Holding everything else
-fixed and toggling only the no-trade band (§7 of the IPS,
-`REBALANCE_BAND = 0.015`):
-
-| 60/40 | No band | ±1.5% band |
-|---|---|---|
-| Turnover p.a. | 6.30% | 3.99% |
-| Capital gains tax | €133,709 | €115,008 |
-| Terminal value | €2,754,130 | €2,822,725 |
-
-€68,595 of terminal value from one line of portfolio policy, and only €2,000 of
-it is saved commission. The rest is deferred tax that stayed invested.
-
-**4. Risk parity did what it promises and not more.** Lowest volatility (6.00%),
-lowest drawdown, lowest turnover, and a return that, after a 3.5% withdrawal
-rate, left the portfolio at €1.72m against a €2m start. Low risk is not free
-when there is an income need: the mandate's binding problem is funding, and
-risk parity solves for the wrong variable unless it is levered, which the IPS
-prohibits.
-
-## Method notes
-
-**Drawdown is computed on a time-weighted index, not the wealth path.** With
-€70k a year leaving the portfolio, the account value falls for reasons that
-have nothing to do with markets. Measuring drawdown on the raw wealth path
-turns a scheduled income payment into a permanent, unrecoverable loss and
-produces figures like −55% on a 60/40 portfolio. `metrics.wealth_index()`
-compounds the withdrawal-adjusted return series instead. The wealth path is
-still reported separately, because funding the income *is* the objective — the
-two questions just need two different series.
-
-**All three strategies start on the same date.** Mean-variance needs a
-five-year estimation window; 60/40 needs none. Letting each start when it is
-ready compares start dates, not strategies. `common_start_index()` burns in the
-longest lookback of any strategy for all of them.
-
-**No look-ahead.** Allocators receive only the trailing return window available
-at the rebalance date. There is a test (`test_no_lookahead_in_estimation_window`)
-that spies on every window the engine passes in and asserts it ends strictly
-before the rebalance date.
-
-**Italian tax model.** Realised gains taxed at 26%, or 12.5% for white-list
-government issuers; losses carried forward four years and offset against later
-gains; 0.20% *imposta di bollo* charged annually on statement value;
-accumulating share classes assumed, so no annual dividend leakage.
-
-The model is deliberately optimistic in one place, and the IPS says so: gains on
-UCITS funds are *redditi di capitale* while losses are *redditi diversi*, so an
-ETF loss **cannot** offset an ETF gain. The carry-forward pool implemented here
-is more generous than reality. Modelling that asymmetry properly is the first
-item on the to-do list.
-
-## Repository layout
-
-```
-├── docs/
-│   └── IPS.md               Investment Policy Statement (the mandate)
-├── src/
-│   ├── config.py            Mandate, universe, tax constants, constraints
-│   ├── data.py              Yahoo Finance download + synthetic fallback
-│   ├── strategies.py        The three allocators
-│   ├── backtest.py          Daily engine: costs, income, tax, rebalancing
-│   ├── metrics.py           Risk, return, cost and attribution metrics
-│   └── run.py               Entry point, charts, results write-up
-├── tests/
-│   └── test_strategies.py   20 tests: constraints, tax, no-look-ahead
-└── outputs/                 Generated: RESULTS.md, CSVs, charts
-```
-
-Everything about the mandate lives in `src/config.py`. Change the capital,
-horizon, income need, tax rates, universe or constraints there and re-run; no
-other file needs editing.
-
-## Running it
+## Run it
 
 ```bash
-git clone https://github.com/<you>/hnw-portfolio-construction.git
+git clone https://github.com/<your-handle>/hnw-portfolio-construction.git
 cd hnw-portfolio-construction
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-python -m src.run --no-cache      # download real prices, full study
-python -m pytest -q               # 20 tests
+python -m src.fetch_macro     # Italian HICP + ticker coverage audit
+python -m src.run --no-cache  # download prices, run the study
+python -m pytest -q           # 20 tests
 ```
 
-Useful flags:
+`src/run.py` writes every table and chart into `outputs/`, including
+[`RESULTS.md`](outputs/RESULTS.md).
 
-```bash
-python -m src.run --no-tax              # gross of Italian tax, for comparison
-python -m src.run --rebalance M         # monthly instead of quarterly
-python -m src.run --start 2008-01-01    # include the GFC
+Useful flags: `--no-tax` (gross of Italian tax), `--rebalance M` (monthly),
+`--start 2012-01-01`, `--allow-synthetic` (simulate prices when offline).
+
+## Data
+
+| Input | Source | Coverage |
+|---|---|---|
+| Prices | Yahoo Finance via `yfinance`, adjusted close, EUR | see below |
+| Risk-free rate | XEON.DE overnight-rate tracker total return | 2008– |
+| €STR cross-check | ECB Data Portal (committed, `data/macro/`) | 2019-10– |
+| Inflation | Italian HICP, Eurostat via FRED `CP0000ITM086NEST` | 1996-01– |
+
+**Universe.** Seven EUR-denominated UCITS ETFs. Inception dates were verified
+before selection, because they are what actually determines the study window:
+
+| Asset | Ticker | From |
+|---|---|---|
+| Developed world equity | IWDA.AS | 2009-09 |
+| Emerging market equity | EUNM.DE | 2009-10 |
+| Euro government bonds | EUNH.DE | 2009-04 |
+| Euro IG corporates | IEAC.AS | 2009-05 |
+| Euro aggregate | IEAG.AS | 2009-03 |
+| European listed property | IQQP.DE | 2008-12 |
+| Gold | 4GLD.DE | 2009-11 |
+
+Common window ≈ **December 2009 onward, about 16.5 years**. With a three-year
+estimation window burned in for the optimiser, roughly **13.5 years are
+measured** — short of fifteen, and the README says so rather than rounding up.
+Run `python -m src.fetch_macro --coverage` to re-audit; ETF listings change.
+
+Three data decisions worth stating, since each changes results:
+
+**Adjusted close, not close.** IEAC, IEAG and IQQP are distributing funds.
+Their raw price excludes coupons, so a bond fund yielding 3% shows as roughly
+flat over a decade. `auto_adjust=True` reinvests distributions.
+
+**The risk-free rate is a series, not a constant.** Euro cash went from −0.5%
+to +4% across this sample. A flat assumption doesn't just add noise to Sharpe
+ratios, it gets them wrong in a direction that reverses partway through the
+study. The rate is taken from an overnight-rate ETF's total return (available
+from 2008, unlike €STR which starts in 2019) and cross-checked against the
+ECB's published €STR over the overlap.
+
+**Income is indexed to realised HICP.** Euro inflation exceeded 8% in 2022.
+Indexing the client's withdrawal at a smooth 2% would understate the real
+withdrawal burden in the year the portfolio was also falling — which is exactly
+the sequence risk the mandate exists to survive.
+
+**Stooq was evaluated and rejected.** Its European ETF history starts when
+Stooq began tracking a listing, not at fund inception — IWDA.NL begins in
+January 2026 there, and XDWD.DE in 2015. Using it would have silently produced
+a 15-month "15-year" study.
+
+## Method notes
+
+**Drawdown is computed on a time-weighted index, not the wealth path.** With
+€70k a year leaving the portfolio, account value falls for reasons unrelated to
+markets. Measuring drawdown on raw wealth turns a scheduled income payment into
+a permanent, unrecoverable loss. `metrics.wealth_index()` compounds the
+withdrawal-adjusted return series instead; the wealth path is reported
+separately, because funding the income *is* the objective. Two questions, two
+series.
+
+**All three strategies start on the same date.** Mean-variance needs an
+estimation window, 60/40 needs none. Letting each start when ready compares
+start dates, not strategies. `common_start_index()` burns in the longest
+lookback for all of them.
+
+**No look-ahead.** Allocators receive only the trailing window available at the
+rebalance date. `test_no_lookahead_in_estimation_window` spies on every window
+the engine passes in and asserts it ends strictly before the rebalance date.
+
+**Italian tax.** Realised gains at 26%, or 12.5% for white-list government
+issuers; losses carried forward four years; 0.20% *imposta di bollo* annually
+on statement value; accumulating share classes where available.
+
+The model is deliberately optimistic in one place, and the IPS says so: gains
+on UCITS funds are *redditi di capitale* while losses are *redditi diversi*, so
+an ETF loss cannot offset an ETF gain. The carry-forward pool implemented here
+is more generous than reality. Modelling that asymmetry is the first item on
+the to-do list.
+
+## Repository layout
+
 ```
+├── docs/IPS.md              Investment Policy Statement (the mandate)
+├── src/
+│   ├── config.py            Mandate, universe, tax constants, constraints
+│   ├── data.py              Prices, cash rate, inflation; synthetic fallback
+│   ├── fetch_macro.py       Macro download + ticker coverage audit
+│   ├── strategies.py        The three allocators
+│   ├── backtest.py          Daily engine: costs, income, tax, rebalancing
+│   ├── metrics.py           Risk, return, cost and attribution metrics
+│   └── run.py               Entry point, charts, results write-up
+├── tests/test_strategies.py 20 tests: constraints, tax, no-look-ahead
+├── data/macro/              ECB €STR export (committed)
+└── outputs/                 Generated by src/run.py
+```
+
+Everything about the mandate lives in `src/config.py` — capital, horizon,
+income need, tax rates, universe, constraints. Change it there and re-run.
 
 ## Known limitations
 
-- Tickers in `config.UNIVERSE` are Yahoo symbols for EUR-listed UCITS ETFs.
-  Several have inception dates after 2010, so a true 15-year run will fall back
-  to a shorter overlapping window or drop assets. Fix by substituting index
-  series for the early years — not yet implemented.
-- Currency is assumed EUR throughout. EUR-listed share classes of global funds
-  still carry underlying currency risk; there is no explicit FX model.
-- The *redditi di capitale* / *redditi diversi* asymmetry is not modelled (see
-  above).
-- Mean-variance uses a constant-correlation shrinkage target rather than
-  Ledoit-Wolf with an estimated intensity.
-- No glidepath: the allocation does not de-risk as the horizon shortens, which
-  a real 15-year drawdown mandate would.
-- Transaction costs are a flat 8bp. Real spreads widen exactly when the
+- The window is ~13.5 measured years, not 15. Extending it requires splicing
+  index series onto the front of the ETF histories, which is not implemented.
+- The *redditi di capitale* / *redditi diversi* asymmetry is not modelled.
+- IWDA and EUNM are USD-denominated funds with EUR listings: the EUR price
+  embeds FX, but there is no explicit currency model or hedging decision.
+- Mean-variance uses constant-correlation shrinkage rather than Ledoit-Wolf
+  with an estimated intensity.
+- No glidepath — the allocation does not de-risk as the horizon shortens,
+  which a real 15-year drawdown mandate would.
+- Transaction costs are a flat 8bp. Real spreads widen exactly when a
   rebalance matters most.
+- Survivorship: these tickers were chosen in 2026 partly *because* they still
+  exist with long histories.
 
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
+
+Price data © Yahoo Finance. €STR © European Central Bank. HICP © Eurostat,
+retrieved via FRED, St. Louis Fed.
+
+Built by Isabel Bengu.
 
 *Fictitious client, illustrative figures. Not investment or tax advice.*
