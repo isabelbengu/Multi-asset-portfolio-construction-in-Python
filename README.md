@@ -4,8 +4,8 @@ A portfolio construction case study for a hypothetical €2,000,000 high-net-wor
 mandate: 15-year horizon, ongoing income need, Italian tax residency. It
 contains a two-page [Investment Policy Statement](docs/IPS.md) defining
 objectives, constraints and risk limits, and a Python backtesting engine
-comparing three allocation methods — strategic 60/40, mean-variance
-optimisation, and equal-risk-contribution risk parity — with quarterly
+comparing three allocation methods: strategic 60/40, mean-variance
+optimisation, and equal-risk-contribution risk parity, with quarterly
 rebalancing, net of transaction costs, ongoing charges, Italian capital gains
 tax and *imposta di bollo*.
 
@@ -77,11 +77,6 @@ Indexing the client's withdrawal at a smooth 2% would understate the real
 withdrawal burden in the year the portfolio was also falling — which is exactly
 the sequence risk the mandate exists to survive.
 
-**Stooq was evaluated and rejected.** Its European ETF history starts when
-Stooq began tracking a listing, not at fund inception — IWDA.NL begins in
-January 2026 there, and XDWD.DE in 2015. Using it would have silently produced
-a 15-month "15-year" study.
-
 ## Method notes
 
 **Drawdown is computed on a time-weighted index, not the wealth path.** With
@@ -140,10 +135,9 @@ income need, tax rates, universe, constraints. Change it there and re-run.
   embeds FX, but there is no explicit currency model or hedging decision.
 - Mean-variance uses constant-correlation shrinkage rather than Ledoit-Wolf
   with an estimated intensity.
-- No glidepath — the allocation does not de-risk as the horizon shortens,
+- No glidepath, the allocation does not de-risk as the horizon shortens,
   which a real 15-year drawdown mandate would.
-- Transaction costs are a flat 8bp. Real spreads widen exactly when a
-  rebalance matters most.
+- Transaction costs are a flat 8bp.
 - Survivorship: these tickers were chosen in 2026 partly *because* they still
   exist with long histories.
 
