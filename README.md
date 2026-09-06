@@ -9,10 +9,6 @@ optimisation, and equal-risk-contribution risk parity, with quarterly
 rebalancing, net of transaction costs, ongoing charges, Italian capital gains
 tax and *imposta di bollo*.
 
-The point of the exercise is the part most backtests leave out: what an
-allocation does **after** an income schedule, a turnover budget and a 26% tax
-rate are applied to it.
-
 ## Run it
 
 ```bash
